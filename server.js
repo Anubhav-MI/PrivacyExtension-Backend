@@ -1,6 +1,8 @@
 import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { spawn } from "child_process";
+import fs from "fs";
+import mammoth from "mammoth";
 import dotenv from "dotenv";
 import cors from "cors";
 dotenv.config();
@@ -22,28 +24,29 @@ app.use(express.json());
 
 // const generationConfig = { temperature: 0.5, maxTokens: 100 };
 
+// const pythonProcess = exec("scrap.py", (error, stdout, stderr) => {
+//   if (error) {
+//     console.error("Error executing Python script:", error);
+//     return;
+//   }
+//   console.log("Python script output:", stdout);
+// });
+
+// pythonProcess.stdout.on("data", (data) => {
+//   console.log(`stdout: ${data}`);
+// });
+
+// pythonProcess.stderr.on("data", (data) => {
+//   console.error(`stderr: ${data}`);
+// });
+
+// pythonProcess.on("close", (code) => {
+//   console.log(`child process exited with code ${code}`);
+// });
+
 app.post("/summarize", async (req, res) => {
   const { text } = req.body;
   console.log("requested");
-  // const pythonProcess = exec("scrap.py", (error, stdout, stderr) => {
-  //   if (error) {
-  //     console.error("Error executing Python script:", error);
-  //     return;
-  //   }
-  //   console.log("Python script output:", stdout);
-  // });
-
-  // pythonProcess.stdout.on("data", (data) => {
-  //   console.log(`stdout: ${data}`);
-  // });
-
-  // pythonProcess.stderr.on("data", (data) => {
-  //   console.error(`stderr: ${data}`);
-  // });
-
-  // pythonProcess.on("close", (code) => {
-  //   console.log(`child process exited with code ${code}`);
-  // });
   try {
     // const { spawn } = require("child_process");
     const pythonProcess = spawn("python", ["scrap.py"]); // Pass text as an argument
@@ -67,9 +70,22 @@ app.post("/summarize", async (req, res) => {
         }
       });
     });
+    const docxFilePath = "summarized_terms_and_conditions.docx"; // Adjust the path to your .docx file
 
-    const summary = pythonOutput.trim(); // Get the final summary
-    res.json({ summary });
+    // Read the .docx file using mammoth
+    mammoth.extractRawText({ path: docxFilePath }).then((result) => {
+      const text = result.value; // Extracted text content
+
+      // Write the text content to a .txt file
+      fs.writeFileSync("output.txt", text);
+
+      // Set the appropriate headers for the response
+      res.setHeader("Content-Disposition", "attachment; filename=output.txt");
+      res.setHeader("Content-Type", "text/plain");
+
+      // Send the text content as the response
+      res.send(text);
+    });
   } catch (error) {
     console.error("Error executing Python script:", error);
     res.status(500).json({ error: "Failed to generate summary" });
